@@ -8,6 +8,5 @@ services:
         fromService:
           type: secret
           name: gemini-api-key
-      - key: PORT
-        value: 8080
+      # Don’t force PORT, let platform inject it
     plan: free

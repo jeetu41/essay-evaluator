@@ -23,3 +23,4 @@ COPY --from=build /app/target/app.jar app.jar
 
 # ENTRYPOINT runs the Spring Boot app
 ENTRYPOINT ["java", "-jar", "app.jar"]
+

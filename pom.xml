@@ -36,9 +36,8 @@
   </dependencies>
   
   <build>
-    <!-- This sets the JAR name to app.jar -->
+    <!-- Ensure JAR is named app.jar -->
     <finalName>app</finalName>
-
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -55,3 +54,4 @@
     </plugins>
   </build>
 </project>
+

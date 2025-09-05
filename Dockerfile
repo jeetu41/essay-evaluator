@@ -14,6 +14,6 @@ FROM eclipse-temurin:18-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/app.jar app.jar
 
-EXPOSE 8080  # optional, safe for local dev
+EXPOSE 1000  # optional, safe for local dev
 ENTRYPOINT ["java", "-jar", "app.jar"]
 

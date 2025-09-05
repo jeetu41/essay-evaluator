@@ -1,0 +1,96 @@
+<script>
+    document.getElementById('evaluationForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const essay = document.getElementById('essay').value.trim();
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+        
+        if (!essay) {
+            alert('Please enter an essay to evaluate.');
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Evaluating...';
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'result loading';
+        resultDiv.innerHTML = '🔄 Analyzing your essay...';
+        
+        try {
+            const response = await fetch('/api/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ essay: essay })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            resultDiv.className = 'result';
+    
+            // Get scores (either fallback or direct response)
+            let scores = null;
+            if (data.fallback) {
+                scores = data.fallback;
+            } else if (data.content !== undefined) {
+                scores = data;
+            }
+    
+            if (scores) {
+                // Build table of results
+                let tableRows = `
+                    <tr><td>Content</td><td>${scores.content}/10</td></tr>
+                    <tr><td>Structure</td><td>${scores.structure}/10</td></tr>
+                    <tr><td>Grammar</td><td>${scores.grammar}/10</td></tr>
+                    <tr><td>Vocabulary</td><td>${scores.vocabulary}/10</td></tr>
+                    <tr><td>Coherence</td><td>${scores.coherence}/10</td></tr>
+                    <tr><td>Creativity</td><td>${scores.creativity}/10</td></tr>
+                `;
+    
+                let suggestionsHtml = '';
+                if (scores.suggestions) {
+                    if (Array.isArray(scores.suggestions)) {
+                        suggestionsHtml = scores.suggestions.map(s => `<li>${s}</li>`).join('');
+                    } else {
+                        suggestionsHtml = `<li>${scores.suggestions}</li>`;
+                    }
+                }
+    
+                resultDiv.innerHTML = `
+                    <h3>📊 AI Essay Evaluation Results</h3>
+                    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse: collapse; margin: 15px 0;">
+                        <thead>
+                            <tr style="background:#007bff; color:white;">
+                                <th>Aspect</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    <div style="margin-top:15px;">
+                        <h4>💡 Suggestions for Improvement:</h4>
+                        <ul style="color:#555;">${suggestionsHtml}</ul>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<p>⚠️ Could not get structured evaluation. Raw response:</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+    
+        } catch (error) {
+            console.error('Fetch error:', error);
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `❌ Error: ${error.message}`;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Evaluate Essay';
+        }
+    });
+    </script>
+    

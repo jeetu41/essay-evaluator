@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: essay-evaluator
+    env: java
+    buildCommand: ./mvnw clean package
+    startCommand: java -jar target/*.jar --server.port=$PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        fromService:
+          type: secret
+          name: gemini-api-key
+    plan: free

@@ -26,10 +26,10 @@ public class EvaluationController {
     // ✅ Essay evaluation endpoint
     @PostMapping("/evaluate")
     public ResponseEntity<?> evaluate(@RequestBody Map<String, String> body) {
-        String topic = body.get("topic");   // optional, if you want topic
         String essay = body.get("essay");
+        String topic = body.get("topic"); // optional, can be null
 
-        // FIX: use aiService instead of aiEvaluationService
-        return ResponseEntity.ok(aiService.evaluateEssay(essay));
+        // Pass both parameters to match the service method
+        return ResponseEntity.ok(aiService.evaluateEssay(essay, topic));
     }
 }

@@ -17,19 +17,20 @@ public class AiEvaluationService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public Map<String, Object> evaluateEssay(String essay) {
-       // String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + apiKey;
-         String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    // Now accepts both topic and essay
+    public Map<String, Object> evaluateEssay(String topic, String essay) {
+        String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
         // Prompt for Gemini
         Map<String, Object> request = Map.of(
                 "contents", List.of(
                         Map.of("parts", List.of(
                                 Map.of("text",
-                                        "Evaluate this essay in JSON only with keys: " +
+                                        "Evaluate the following essay strictly in JSON format with keys: " +
                                                 "content, structure, grammar, vocabulary, coherence, creativity, suggestions. " +
                                                 "Scores should be integers (1–10). " +
-                                                "Essay: " + essay)
+                                                "\n\nEssay Topic: " + topic +
+                                                "\nEssay: " + essay)
                         ))
                 )
         );
@@ -58,6 +59,8 @@ public class AiEvaluationService {
             // Try to extract JSON from text
             Map<String, Object> parsed = tryParseJson(text);
             if (parsed != null) {
+                // ✅ Add total score calculation
+                addTotalScore(parsed);
                 return parsed;
             }
 
@@ -85,6 +88,21 @@ public class AiEvaluationService {
         return null;
     }
 
+    private void addTotalScore(Map<String, Object> parsed) {
+        int sum = 0, count = 0;
+        for (String key : List.of("content", "structure", "grammar", "vocabulary", "coherence", "creativity")) {
+            Object val = parsed.get(key);
+            if (val instanceof Number) {
+                sum += ((Number) val).intValue();
+                count++;
+            }
+        }
+        if (count > 0) {
+            parsed.put("totalScore", sum);
+            parsed.put("averageScore", sum / count);
+        }
+    }
+
     private Map<String, Object> fallbackScores(String reason) {
         Map<String, Object> fallback = new LinkedHashMap<>();
         fallback.put("content", 6);
@@ -94,6 +112,11 @@ public class AiEvaluationService {
         fallback.put("coherence", 6);
         fallback.put("creativity", 7);
         fallback.put("suggestions", List.of("Add more examples.", "Improve coherence between paragraphs."));
+
+        // Add total + average
+        int total = 6 + 7 + 8 + 7 + 6 + 7;
+        fallback.put("totalScore", total);
+        fallback.put("averageScore", total / 6);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("fallback", fallback);

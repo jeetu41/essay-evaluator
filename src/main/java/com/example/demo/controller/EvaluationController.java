@@ -13,6 +13,10 @@ public class EvaluationController {
     public EvaluationController(AiEvaluationService aiService) {
         this.aiService = aiService;
     }
+    @GetMapping("/ping")
+public Map<String, String> ping() {
+    return Map.of("status", "API is working!");
+}
 
     @PostMapping("/evaluate")
     public Map<String, Object> evaluate(@RequestBody Map<String, String> body) {

@@ -18,7 +18,8 @@ public class AiEvaluationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Map<String, Object> evaluateEssay(String essay) {
-        String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + apiKey;
+       // String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + apiKey;
+         String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
         // Prompt for Gemini
         Map<String, Object> request = Map.of(

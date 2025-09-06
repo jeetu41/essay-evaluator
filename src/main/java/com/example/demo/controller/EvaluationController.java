@@ -18,9 +18,11 @@ public Map<String, String> ping() {
     return Map.of("status", "API is working!");
 }
 
-    @PostMapping("/evaluate")
-    public Map<String, Object> evaluate(@RequestBody Map<String, String> body) {
-        String essay = body.getOrDefault("essay", "");
-        return aiService.evaluateEssay(essay);
-    }
+   @PostMapping("/evaluate")
+public ResponseEntity<?> evaluate(@RequestBody Map<String, String> body) {
+    String topic = body.get("topic");
+    String essay = body.get("essay");
+    return ResponseEntity.ok(aiEvaluationService.evaluateEssay(topic, essay));
+}
+    
 }

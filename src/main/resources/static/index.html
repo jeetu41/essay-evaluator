@@ -165,7 +165,9 @@
             const response = await fetch('/api/evaluate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ essay: essay })
+              //  body: JSON.stringify({ essay: essay })
+                body: JSON.stringify({ essay: essayText })
+
             });
             
             if (!response.ok) {

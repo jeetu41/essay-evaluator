@@ -1,6 +1,4 @@
-# ------------------------
 # Build Stage
-# ------------------------
 FROM maven:3.8.6-openjdk-18-slim AS build
 WORKDIR /app
 
@@ -12,15 +10,12 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# ------------------------
 # Run Stage
-# ------------------------
 FROM eclipse-temurin:18-jre-alpine
 WORKDIR /app
 
 # Copy the JAR built in the build stage
 COPY --from=build /app/target/app.jar app.jar
 
-# ENTRYPOINT runs the Spring Boot app
-ENTRYPOINT ["java", "-jar", "app.jar"]
-
+# ENTRYPOINT runs the Spring Boot app, using the PORT environment variable
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT} -jar app.jar"]

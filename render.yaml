@@ -5,8 +5,5 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: GEMINI_API_KEY
-        fromService:
-          type: secret
-          name: gemini-api-key
-      # Don’t force PORT, let platform inject it
+        fromSecret: gemini-api-key
     plan: free

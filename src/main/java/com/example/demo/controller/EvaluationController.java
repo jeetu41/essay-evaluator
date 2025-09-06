@@ -12,19 +12,24 @@ public class EvaluationController {
 
     private final AiEvaluationService aiService;
 
+    // ✅ Constructor injection for AiEvaluationService
     public EvaluationController(AiEvaluationService aiService) {
         this.aiService = aiService;
     }
 
+    // ✅ Health check endpoint
     @GetMapping("/ping")
     public Map<String, String> ping() {
         return Map.of("status", "API is working!");
     }
 
+    // ✅ Essay evaluation endpoint
     @PostMapping("/evaluate")
     public ResponseEntity<?> evaluate(@RequestBody Map<String, String> body) {
-        String topic = body.get("topic");
+        String topic = body.get("topic");   // optional, if you want topic
         String essay = body.get("essay");
-        return ResponseEntity.ok(aiService.evaluateEssay(topic, essay));
+
+        // FIX: use aiService instead of aiEvaluationService
+        return ResponseEntity.ok(aiService.evaluateEssay(essay));
     }
 }

@@ -1,142 +1,102 @@
 package com.example.demo.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.regex.*;
 
 @Service
 public class AiEvaluationService {
 
-    private final WebClient webClient;
-    private final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    public AiEvaluationService() {
-        this.webClient = WebClient.builder().build();
-    }
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Map<String, Object> evaluateEssay(String essay) {
-        String prompt = """
-        You are an essay evaluator. 
-        Analyze the essay for: content, structure, grammar, vocabulary, coherence, creativity. 
-        Return ONLY valid JSON in this format (no extra text, no markdown):
+        String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + apiKey;
 
-        {
-          "content": 0-10,
-          "structure": 0-10,
-          "grammar": 0-10,
-          "vocabulary": 0-10,
-          "coherence": 0-10,
-          "creativity": 0-10,
-          "suggestions": ["short actionable suggestion 1", "short actionable suggestion 2"]
-        }
-
-        Essay: %s
-        """.formatted(essay);
+        // Prompt for Gemini
+        Map<String, Object> request = Map.of(
+                "contents", List.of(
+                        Map.of("parts", List.of(
+                                Map.of("text",
+                                        "Evaluate this essay in JSON only with keys: " +
+                                                "content, structure, grammar, vocabulary, coherence, creativity, suggestions. " +
+                                                "Scores should be integers (1–10). " +
+                                                "Essay: " + essay)
+                        ))
+                )
+        );
 
         try {
-            Map response = webClient.post()
-                    .uri(GEMINI_URL + "?key=" + apiKey)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(Map.of("contents", List.of(
-                            Map.of("parts", List.of(Map.of("text", prompt)))
-                    )))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+            // Call Gemini API
+            Map response = restTemplate.postForObject(apiUrl, request, Map.class);
 
-            // Extract main text from Gemini response
-            String evaluationText = extractText(response);
+            // 🔍 Debug log raw Gemini response
+            System.out.println("Raw Gemini response: " + response);
 
-            if (evaluationText != null) {
-                try {
-                    return parseJsonString(evaluationText); // ✅ should now be valid JSON
-                } catch (Exception e) {
-                    return Map.of(
-                            "error", "Could not parse AI response as JSON",
-                            "raw_response", evaluationText,
-                            "fallback", fakeScores(essay)
-                    );
-                }
-            } else {
-                return Map.of(
-                        "error", "Empty response from Gemini",
-                        "fallback", fakeScores(essay)
-                );
+            // Extract text output
+            List candidates = (List) response.get("candidates");
+            if (candidates == null || candidates.isEmpty()) {
+                return fallbackScores("No candidates in response");
             }
+
+            Map candidate = (Map) candidates.get(0);
+            Map content = (Map) candidate.get("content");
+            List parts = (List) content.get("parts");
+            Map part = (Map) parts.get(0);
+            String text = (String) part.get("text");
+
+            System.out.println("Gemini raw text: " + text);
+
+            // Try to extract JSON from text
+            Map<String, Object> parsed = tryParseJson(text);
+            if (parsed != null) {
+                return parsed;
+            }
+
+            // If parsing fails → fallback
+            return fallbackScores("Failed to parse Gemini JSON");
 
         } catch (Exception e) {
-            String errorMessage = e.getMessage();
-            if (errorMessage.contains("503")) {
-                errorMessage = "Gemini API service is temporarily unavailable. Using fallback evaluation.";
-            } else if (errorMessage.contains("403")) {
-                errorMessage = "API key authentication failed. Please check your API key.";
-            } else if (errorMessage.contains("400")) {
-                errorMessage = "Invalid API request. Please check the request format.";
-            }
-
-            return Map.of(
-                    "error", errorMessage,
-                    "fallback", fakeScores(essay)
-            );
+            e.printStackTrace();
+            return fallbackScores("Error: " + e.getMessage());
         }
     }
 
-    /**
-     * Extracts the main text from Gemini API response
-     */
-    private String extractText(Map response) {
+    private Map<String, Object> tryParseJson(String text) {
         try {
-            List candidates = (List) response.get("candidates");
-            if (candidates != null && !candidates.isEmpty()) {
-                Map firstCandidate = (Map) candidates.get(0);
-                Map content = (Map) firstCandidate.get("content");
-                List parts = (List) content.get("parts");
-                if (parts != null && !parts.isEmpty()) {
-                    Map firstPart = (Map) parts.get(0);
-                    return (String) firstPart.get("text");
-                }
+            // Extract JSON block using regex
+            Pattern pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL);
+            Matcher matcher = pattern.matcher(text);
+            if (matcher.find()) {
+                String json = matcher.group();
+                return objectMapper.readValue(json, Map.class);
             }
         } catch (Exception e) {
-            return null;
+            System.out.println("JSON parsing failed: " + e.getMessage());
         }
         return null;
     }
 
-    /**
-     * Converts AI JSON string into a Map
-     */
-    private Map<String, Object> parseJsonString(String json) {
-        com.fasterxml.jackson.databind.ObjectMapper mapper =
-                new com.fasterxml.jackson.databind.ObjectMapper();
-        try {
-            return mapper.readValue(json, Map.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse AI JSON: " + e.getMessage());
-        }
-    }
+    private Map<String, Object> fallbackScores(String reason) {
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("content", 6);
+        fallback.put("structure", 7);
+        fallback.put("grammar", 8);
+        fallback.put("vocabulary", 7);
+        fallback.put("coherence", 6);
+        fallback.put("creativity", 7);
+        fallback.put("suggestions", List.of("Add more examples.", "Improve coherence between paragraphs."));
 
-    /**
-     * Fallback scores if API fails
-     */
-    private Map<String, Object> fakeScores(String essay) {
-        return Map.of(
-                "content", 7,
-                "structure", 7,
-                "grammar", 8,
-                "vocabulary", 7,
-                "coherence", 8,
-                "creativity", 6,
-                "suggestions", List.of(
-                        "Expand your ideas with examples",
-                        "Improve vocabulary variety",
-                        "Add a stronger conclusion"
-                )
-        );
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("fallback", fallback);
+        result.put("error", reason);
+        return result;
     }
 }
